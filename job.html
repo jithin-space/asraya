@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>ELECTION-KERALA</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap.min.css">
+
+
+    <link rel="stylesheet" type="text/css" href="css/dc.css"/>
+
+
+    <style>
+      .dc-chart g.chart-body {
+          clip-path: none;
+      }
+      .dc-chart rect.stack-deselected {
+          opacity: 0.2;
+      }
+
+      #pie .filter{
+        overflow:auto;
+      }
+    </style>
+  </head>
+<body>
+
+<div class="container">
+  <h1>ELECTION KERALA <small>Trivandrum Constituency</small></h1>
+  <div id="test">
+    <div class="reset" style="visibility: hidden;">selected: <span class="filter"></span>
+      <a href="javascript:chart.filterAll();dc.redrawAll();">reset</a>
+    </div>
+  </div>
+  <div id="pie">
+    <div class="reset" style="visibility: hidden;">range: <span class="filter"></span>
+      <a href="javascript:pie.filterAll();dc.redrawAll();">reset</a>
+    </div>
+  </div>
+
+  <div class='row'>
+		<div class='col-xs-12'>
+			<h3>Previous Poll Data (Booth Wise)</h3>
+				<table class='table table-striped table-bordered' id='dc-table-chart'  style="width:100%">
+					<thead>
+						<tr class='header'>
+							<th>Booth ID</th>
+							<th>Booth Name</th>
+							<th>Constituency</th>
+							<th>Total Vote(2009)</th>
+              <th>Total Vote(2014)</th>
+              <th>Total Vote(2016)</th>
+
+						</tr>
+					</thead>
+				</table>
+		</div>
+	</div>
+
+    <script type="text/javascript" src="js/promise-polyfill.js"></script>
+    <script type="text/javascript" src="js/fetch.umd.js"></script>
+    <script type="text/javascript" src="js/d3.js"></script>
+    <script type="text/javascript" src="js/crossfilter.js"></script>
+    <script type="text/javascript" src="js/dc.js"></script>
+    <script type="text/javascript" src='js/jquery.js'></script>
+    <script type="text/javascript" src='js/bootstrap.min.js'></script>
+
+    <script type="text/javascript" src='https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js'></script>
+    <script type="text/javascript" src='https://cdn.datatables.net/1.10.19/js/dataTables.bootstrap.min.js'></script>
+
+    <script type="text/javascript">
+
+    //var chart = dc.barChart("#test");
+    var pie = dc.pieChart('#pie');
+
+  var datatable = $('#dc-table-chart');
+
+
+
+d3.json("examples/ashraya.json").then(function(data) {
+    data.forEach(function(el){
+
+      var jobless = true;
+      
+
+      el['begin_repeat_nVIl6zyWU(family_members)'].forEach(function(e)
+      {
+
+      if(e.doing === 'job')
+      {
+        jobless = false;
+      }
+
+    });
+    el.jobless = jobless;
+  });
+
+
+   xf = crossfilter(data);
+
+  var dimension_fuel = xf.dimension(function(d){
+  return d.jobless;
+  });
+
+
+  pie.width(300)
+      .height(400)
+      .slicesCap(7)
+      .innerRadius(50)
+      .controlsUseVisibility(true)
+      .dimension(dimension_fuel)
+      .group(dimension_fuel.group())
+      .on('pretransition', function(chart) {
+          chart.selectAll('text.pie-slice').text(function(d) {
+              return d.data.key + ' ' + dc.utils.printSingleValue((d.endAngle - d.startAngle) / (2 * Math.PI) * 100) + '%';
+          });
+      });
+
+      var dataTableOptions = {
+          columnDefs: [{
+                  targets: 0,
+                  data: function(d) {
+                      return d._id;
+                  },
+
+                  defaultContent: 'Not found'
+              },
+              {
+                  targets: 1,
+                  data: function(d) {
+                      return d.name;
+                  },
+                  defaultContent: ''
+              },
+              {
+                  targets: 2,
+                  data: function(d) {
+                      return d.family_members;
+                  },
+                  defaultContent: ''
+              },
+              {
+                  targets: 3,
+                  data: function(d) {
+                      return d.section;
+                  },
+                  defaultContent: ''
+              },
+              {
+                  targets: 4,
+                  data: function(d) {
+
+                      return d.jobless;
+                  },
+                  defaultContent: ''
+              },
+              {
+                  targets: 5, //search column
+                  data: function(d) {
+                    var age = 'not-found';
+                    d['begin_repeat_nVIl6zyWU(family_members)'].forEach(function(e)
+                    {
+                       if(e.relation === 'self')
+                    {
+                      age= e.age_member;
+                     }
+                  });
+
+                      return age;
+                  },
+                  defaultContent: ''
+              }
+          ]
+      };
+
+      var tableDimension = xf.dimension(function(d){
+
+      var age = 'not-found';
+        d['begin_repeat_nVIl6zyWU(family_members)'].forEach(function(e)
+        {
+           if(e.relation === 'self')
+        {
+          age= e.age_member;
+         }
+      });
+      console.log(age);
+        return d._id+' '+
+        d.name+' '+
+        d.family_members+' '+
+        d.section.replace(/ /g,'')+' '+
+        d.student+ ' '+
+        age
+      });
+
+      for (var i = 0; i < dc.chartRegistry.list().length; i++) {
+          var chartI = dc.chartRegistry.list()[i];
+          chartI.on("filtered", function(e) {
+            var selCons = xf.allFiltered().reduce(function(total, e){
+                var b = e.age;
+                if(! total.includes(b)){
+                  total.push(b);
+                }
+                return total;
+            },[]);
+
+            console.log(selCons);
+          //     var selCons = xf.allFiltered().reduce(function(total, e) {
+          //          });
+          //         return total;
+          //     }, []);
+
+
+              text_filter(tableDimension, selCons);
+
+              function text_filter(dim, q) {
+                  if (q != '') {
+                      dim.filter(function(d) {
+                        return q.includes(d.split(' ').slice(-2,-1)[0]);
+                      });
+                  } else {
+                      dim.filterAll();
+                  }
+                  RefreshTable();
+                  dc.redrawAll();
+              }
+
+          });
+      }
+
+      function RefreshTable() {
+          dc.events.trigger(function() {
+              alldata = tableDimension.top(Infinity);
+              datatable.fnClearTable();
+              datatable.fnAddData(alldata);
+              datatable.fnDraw();
+          });
+        };
+
+
+ datatable.dataTable(dataTableOptions);
+ RefreshTable();
+// dddatatable.fnAddData(tableDimension.top(Infinity));
+  dc.renderAll();
+
+  console.log('working');
+});
+
+    </script>
+
+</div>
+  </body>
+</html>
